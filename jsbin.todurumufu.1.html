@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2026 by anonymous (http://jsbin.com/todurumufu/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width">
+  <title>JS Bin</title>
+</head>
+<body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stock Signals</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: #0f172a; color: #f8fafc; margin: 0; padding: 16px; }
+    h1 { font-size: 1.5rem; margin-bottom: 16px; text-align: center; }
+    
+    /* Navigation Tabs */
+    .tab-bar { display: flex; background: #1e293b; border-radius: 8px; padding: 4px; margin-bottom: 16px; }
+    .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #94a3b8; font-weight: bold; cursor: pointer; border-radius: 6px; }
+    .tab-btn.active { background: #2563eb; color: #ffffff; }
+
+    /* Cards */
+    .card-list { display: flex; flex-direction: column; gap: 12px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 16px; border-left: 5px solid #64748b; }
+    .card.buy { border-left-color: #22c55e; }
+    .card.sell { border-left-color: #ef4444; }
+    .card.hold { border-left-color: #eab308; }
+
+    .card-header { display: flex; justify-content: space-between; align-items: center; }
+    .symbol { font-size: 1.25rem; font-weight: bold; }
+    .price { font-size: 1.1rem; font-weight: 600; }
+    
+    .metrics { margin: 12px 0; font-size: 0.9rem; color: #cbd5e1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8rem; text-transform: uppercase; }
+    .badge.buy { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+    .badge.sell { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .badge.hold { background: rgba(234, 179, 8, 0.2); color: #fde047; }
+
+    /* Buttons */
+    .action-btn { width: 100%; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; margin-top: 8px; }
+    .add-btn { background: #10b981; color: white; }
+    .remove-btn { background: #334155; color: #f87171; }
+  </style>
+</head>
+<body>
+
+  <h1>📈 Stock Signals</h1>
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tab-buy-btn" onclick="switchTab('buy')">Buy Ideas</button>
+    <button class="tab-btn" id="tab-sell-btn" onclick="switchTab('sell')">My Watchlist</button>
+  </div>
+
+  <div id="buy-view" class="card-list"></div>
+  <div id="sell-view" class="card-list" style="display: none;"></div>
+
+  <script>
+    // Sample mock data for analyst consensus
+    const mockDatabase = [
+      { symbol: "NVDA", name: "NVIDIA Corp.", price: 124.50, change: "+3.2%", consensus: "Strong Buy", buyRatings: 32, totalAnalysts: 36, targetPrice: 150.00 },
+      { symbol: "AMD", name: "Advanced Micro Devices", price: 155.20, change: "+1.8%", consensus: "Buy", buyRatings: 22, totalAnalysts: 28, targetPrice: 180.00 },
+      { symbol: "AAPL", name: "Apple Inc.", price: 228.10, change: "-0.4%", consensus: "Hold", buyRatings: 12, totalAnalysts: 30, targetPrice: 235.00 },
+      { symbol: "TSLA", name: "Tesla Inc.", price: 242.00, change: "-2.1%", consensus: "Sell", buyRatings: 5, totalAnalysts: 25, targetPrice: 200.00 }
+    ];
+
+    // Get saved watchlist from local storage or start with defaults
+    let myWatchlist = JSON.parse(localStorage.getItem('my_watchlist')) || ["AAPL", "TSLA"];
+
+    function saveWatchlist() {
+      localStorage.setItem('my_watchlist', JSON.stringify(myWatchlist));
+      renderViews();
+    }
+
+    function addToWatchlist(symbol) {
+      if (!myWatchlist.includes(symbol)) {
+        myWatchlist.push(symbol);
+        saveWatchlist();
+      }
+    }
+
+    function removeFromWatchlist(symbol) {
+      myWatchlist = myWatchlist.filter(s => s !== symbol);
+      saveWatchlist();
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      if (tab === 'buy') {
+        document.getElementById('tab-buy-btn').classList.add('active');
+        document.getElementById('buy-view').style.display = 'flex';
+        document.getElementById('sell-view').style.display = 'none';
+      } else {
+        document.getElementById('tab-sell-btn').classList.add('active');
+        document.getElementById('buy-view').style.display = 'none';
+        document.getElementById('sell-view').style.display = 'flex';
+      }
+    }
+
+    function renderViews() {
+      const buyView = document.getElementById('buy-view');
+      const sellView = document.getElementById('sell-view');
+      
+      buyView.innerHTML = '';
+      sellView.innerHTML = '';
+
+      mockDatabase.forEach(stock => {
+        const isWatchlisted = myWatchlist.includes(stock.symbol);
+
+        // Render Tab 1: Buy Recommendations (not yet in Watchlist)
+        if ((stock.consensus === "Strong Buy" || stock.consensus === "Buy") && !isWatchlisted) {
+          buyView.innerHTML += `
+            <div class="card buy">
+              <div class="card-header">
+                <div>
+                  <span class="symbol">${stock.symbol}</span>
+                  <div style="font-size:0.8rem; color:#94a3b8">${stock.name}</div>
+                </div>
+                <div class="price">$${stock.price.toFixed(2)}</div>
+              </div>
+              <div class="metrics">
+                <div>Consensus: <span class="badge buy">${stock.consensus}</span></div>
+                <div>Analysts: ${stock.buyRatings}/${stock.totalAnalysts} Buy</div>
+                <div>Target Price: $${stock.targetPrice.toFixed(2)}</div>
+              </div>
+              <button class="action-btn add-btn" onclick="addToWatchlist('${stock.symbol}')">+ Add to Watchlist</button>
+            </div>
+          `;
+        }
+
+        // Render Tab 2: Personal Watchlist (Shows Buy/Hold/Sell signals)
+        if (isWatchlisted) {
+          const badgeClass = stock.consensus.includes("Buy") ? "buy" : (stock.consensus === "Sell" ? "sell" : "hold");
+          const cardClass = badgeClass;
+          
+          sellView.innerHTML += `
+            <div class="card ${cardClass}">
+              <div class="card-header">
+                <div>
+                  <span class="symbol">${stock.symbol}</span>
+                  <div style="font-size:0.8rem; color:#94a3b8">${stock.name}</div>
+                </div>
+                <div class="price">$${stock.price.toFixed(2)}</div>
+              </div>
+              <div class="metrics">
+                <div>Status: <span class="badge ${badgeClass}">${stock.consensus}</span></div>
+                <div>Target Price: $${stock.targetPrice.toFixed(2)}</div>
+              </div>
+              <button class="action-btn remove-btn" onclick="removeFromWatchlist('${stock.symbol}')">Remove Stock</button>
+            </div>
+          `;
+        }
+      });
+    }
+
+    // Initial Render
+    renderViews();
+  </script>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"480c9d8468c44ad3bed3c74fbcc6d6f3","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
+</body>
+</html>
